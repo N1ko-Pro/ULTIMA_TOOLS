@@ -9,8 +9,14 @@ using dnlib.DotNet.Emit;
 //
 //  Usage:
 //    MscLocTool extract <input.dll>
-//        → prints JSON array [{ "id": "...", "text": "..." }] to stdout.
-//          One entry per distinct non-empty `ldstr` literal, in first-seen order.
+//        → prints JSON array [{ "id": "...", "text": "...", "context"?: {...} }]
+//          to stdout. One entry per distinct non-empty `ldstr` literal, in
+//          first-seen order. `context` (optional) carries IL-usage signals
+//          aggregated across every occurrence of the literal:
+//              { "sinks":  ["Namespace.Type::Method", ...],   // APIs it flows into
+//                "fields": ["fieldName", ...] }               // fields it's stored in
+//          The app's string classifier uses these to tell player-facing text
+//          from technical identifiers/keys. Omitted when no signals were found.
 //
 //    MscLocTool inject <input.dll> <translations.json> <output.dll>
 //        → translations.json is an object { "<id>": "<translated>" }.
@@ -58,30 +64,100 @@ static class Program
     {
         using var module = ModuleDefMD.Load(inputPath);
 
-        var seen = new HashSet<string>();
-        var entries = new List<object>();
+        // Aggregate per id (literals dedupe by id), preserving first-seen order
+        // so the extract output stays stable across runs.
+        var order = new List<string>();
+        var byId = new Dictionary<string, Entry>();
 
         foreach (var type in module.GetTypes())
         {
             foreach (var method in type.Methods)
             {
                 if (method.Body == null) continue;
-                foreach (var instr in method.Body.Instructions)
+                var instrs = method.Body.Instructions;
+                for (int i = 0; i < instrs.Count; i++)
                 {
+                    var instr = instrs[i];
                     if (instr.OpCode.Code != Code.Ldstr) continue;
                     if (instr.Operand is not string s) continue;
                     if (string.IsNullOrWhiteSpace(s)) continue;
 
                     string id = MakeId(s);
-                    if (seen.Add(id))
-                        entries.Add(new { id, text = s });
+                    if (!byId.TryGetValue(id, out var entry))
+                    {
+                        entry = new Entry { Id = id, Text = s };
+                        byId[id] = entry;
+                        order.Add(id);
+                    }
+                    AnalyzeUsage(instrs, i, entry);
                 }
             }
+        }
+
+        var entries = new List<object>(order.Count);
+        foreach (var id in order)
+        {
+            var e = byId[id];
+            if (e.Sinks.Count == 0 && e.Fields.Count == 0)
+            {
+                entries.Add(new { id = e.Id, text = e.Text });
+                continue;
+            }
+
+            var context = new Dictionary<string, object>();
+            if (e.Sinks.Count > 0) context["sinks"] = e.Sinks.ToArray();
+            if (e.Fields.Count > 0) context["fields"] = e.Fields.ToArray();
+            entries.Add(new { id = e.Id, text = e.Text, context });
         }
 
         Console.OutputEncoding = Encoding.UTF8;
         Console.Out.Write(JsonSerializer.Serialize(entries));
         return 0;
+    }
+
+    // Inspect what consumes the literal at `ldstrIndex`: the first method call
+    // (sink) or field store within a short forward window. A deliberate
+    // heuristic — it nails the common patterns (`ldstr; call Find`,
+    // `ldarg.0; ldstr; stfld name`) and bails on control flow so it never
+    // misattributes across branches. The app side tolerates occasional noise.
+    static void AnalyzeUsage(IList<Instruction> instrs, int ldstrIndex, Entry entry)
+    {
+        int end = Math.Min(ldstrIndex + 7, instrs.Count);
+        for (int j = ldstrIndex + 1; j < end; j++)
+        {
+            var instr = instrs[j];
+            var code = instr.OpCode.Code;
+
+            if (code == Code.Ldstr) break; // next literal begins
+
+            if (code == Code.Call || code == Code.Callvirt || code == Code.Newobj)
+            {
+                if (instr.Operand is IMethod m && m.DeclaringType != null)
+                {
+                    string name = code == Code.Newobj
+                        ? $"{m.DeclaringType.FullName}::.ctor"
+                        : $"{m.DeclaringType.FullName}::{m.Name}";
+                    entry.Sinks.Add(name);
+                }
+                break;
+            }
+
+            if (code == Code.Stfld || code == Code.Stsfld)
+            {
+                if (instr.Operand is IField f)
+                {
+                    string? fieldName = f.Name?.String;
+                    if (!string.IsNullOrEmpty(fieldName))
+                        entry.Fields.Add(fieldName);
+                }
+                break;
+            }
+
+            var flow = instr.OpCode.FlowControl;
+            if (flow == FlowControl.Branch || flow == FlowControl.Cond_Branch ||
+                flow == FlowControl.Return || flow == FlowControl.Throw)
+                break;
+        }
     }
 
     static int Inject(string inputPath, string translationsPath, string outputPath)
@@ -119,4 +195,14 @@ static class Program
         Console.Out.Write(JsonSerializer.Serialize(new { replaced }));
         return 0;
     }
+}
+
+// Accumulates a literal plus the distinct IL-usage signals seen across all of
+// its occurrences (see AnalyzeUsage / the extract context contract).
+sealed class Entry
+{
+    public string Id = "";
+    public string Text = "";
+    public HashSet<string> Sinks { get; } = new();
+    public HashSet<string> Fields { get; } = new();
 }

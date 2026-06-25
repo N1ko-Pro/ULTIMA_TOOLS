@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    MscLocTool — extracts / injects hardcoded string literals in My Summer Car
+    mod assemblies (.NET DLLs) using dnlib. Build instructions: see README.md
+    (self-contained single-file win-x64). Published as a GitHub release asset
+    and downloaded on demand (Backend/games/mysummercar/toolConfig.js).
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>MscLocTool</AssemblyName>
+    <Version>1.0.0</Version>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="dnlib" Version="4.4.0" />
+  </ItemGroup>
+
+</Project>

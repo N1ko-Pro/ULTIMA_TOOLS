@@ -1,0 +1,53 @@
+name: Build MscLocTool
+
+# Builds the dnlib-based My Summer Car localization tool and publishes
+# MscLocTool.exe as a GitHub release asset of this repo (ULTIMA_TOOLS).
+# The ULTIMA app downloads it on demand (see toolConfig.js in the app repo:
+# Backend/games/mysummercar/toolConfig.js -> DOWNLOAD_URL must point here).
+#
+# Publish a new build by pushing a tag like `msc-tools-v1.0.0` (must match
+# TOOL_VERSION in the app's toolConfig.js). The release is marked as a
+# pre-release and NOT "latest", so it never interferes with the app's
+# auto-updater (which tracks the `v*` app releases in the ULTIMA repo).
+
+on:
+  push:
+    tags:
+      - 'msc-tools-v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Publish (self-contained single-file win-x64)
+        run: >
+          dotnet publish MscLocTool/MscLocTool.csproj
+          -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -o publish
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MscLocTool
+          path: publish/MscLocTool.exe
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: publish/MscLocTool.exe
+          prerelease: true
+          make_latest: false

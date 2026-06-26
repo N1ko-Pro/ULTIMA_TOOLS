@@ -15,7 +15,7 @@ namespace UltimaLoc
     {
         public override string ID => "UltimaLocPatcher";
         public override string Name => "ULTIMA Localization Patcher";
-        public override string Version => "1.0.1";
+        public override string Version => "1.0.2";
         public override string Author => "ANICKON";
 
         public UltimaLocMod()
@@ -49,9 +49,13 @@ namespace UltimaLoc
                 Harmony.HarmonyInstance harmony = Harmony.HarmonyInstance.Create("ultima.loc.patcher");
                 int patched = LocPatch.ApplyToLoadedTargets(harmony);
 
+                // Translate settings/descriptions that MSCLoader already
+                // materialized at load time (the transpiler can't reach those).
+                int settings = LocSettings.TranslateLoadedSettings();
+
                 ModConsole.Log(string.Format(
-                    "[ULTIMA Loc] Loaded {0} table(s), {1} string(s); patched {2} method(s) across {3} target assembly(ies).",
-                    tables, LocStore.Map.Count, patched, LocStore.Targets.Count));
+                    "[ULTIMA Loc] Loaded {0} table(s), {1} string(s); patched {2} method(s) across {3} target assembly(ies); translated {4} setting(s).",
+                    tables, LocStore.Map.Count, patched, LocStore.Targets.Count, settings));
             }
             catch (System.Exception ex)
             {

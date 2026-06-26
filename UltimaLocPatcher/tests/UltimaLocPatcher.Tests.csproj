@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Pure unit tests for the patcher's framework-agnostic core (LocId + the
+    LocStore lookup). Targets a modern runtime so it builds & runs in CI / on a
+    dev box without the game assemblies. It links the SAME source files the
+    patcher ships, so the id contract and translate-iff-present logic are tested
+    as-is. JSON loading (LocStore.Io.cs) and Harmony/MSCLoader code are not
+    linked here — they require the game runtime.
+
+    Run via dotnet run from the tests folder (Release).
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>UltimaLocPatcher.Tests</AssemblyName>
+    <RootNamespace>UltimaLoc.Tests</RootNamespace>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <!-- The patcher's pure core, tested as-is. -->
+    <Compile Include="..\src\LocId.cs" />
+    <Compile Include="..\src\LocStore.cs" />
+  </ItemGroup>
+
+</Project>

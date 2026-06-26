@@ -1,0 +1,58 @@
+name: Build UltimaLocPatcher
+
+# Builds the MSCLoader runtime translation patcher and publishes
+# UltimaLocPatcher.dll as a GitHub release asset of this repo (ULTIMA_TOOLS).
+# The ULTIMA app downloads it on demand (see toolConfig.js in the app repo:
+# Backend/games/mysummercar/toolConfig.js -> MSC_PATCHER.downloadUrl points here).
+#
+# Builds net35 via the Microsoft.NETFramework.ReferenceAssemblies NuGet package,
+# so NO game files are needed — the three redistributable deps (MSCLoader,
+# Harmony 1.2, Json.NET) are committed under UltimaLocPatcher/References/.
+#
+# Publish a new build by pushing a tag like `loc-patcher-v1.0.0` (must match
+# MSC_PATCHER.version in the app's toolConfig.js). Marked as a pre-release and
+# NOT "latest", so it never interferes with the app's auto-updater.
+
+on:
+  push:
+    tags:
+      - 'loc-patcher-v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  PROJECT_DIR: UltimaLocPatcher
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Test (pure core, net8)
+        run: dotnet run -c Release --project "${{ env.PROJECT_DIR }}/tests/UltimaLocPatcher.Tests.csproj"
+
+      - name: Build patcher (net35)
+        run: dotnet build -c Release "${{ env.PROJECT_DIR }}/UltimaLocPatcher.csproj" -o publish
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: UltimaLocPatcher
+          path: publish/UltimaLocPatcher.dll
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: publish/UltimaLocPatcher.dll
+          prerelease: true
+          make_latest: false

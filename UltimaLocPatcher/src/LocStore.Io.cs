@@ -1,13 +1,11 @@
 using System.Collections.Generic;
 using System.IO;
-using Newtonsoft.Json.Linq;
 
 namespace UltimaLoc
 {
     /// <summary>
-    /// File-loading half of LocStore (depends on Newtonsoft.Json, provided by
-    /// MSCLoader at runtime). Kept separate from the pure half so the lookup
-    /// logic can be unit-tested without a JSON dependency.
+    /// File-loading half of LocStore. Uses the dependency-free MiniJson parser
+    /// (NOT Newtonsoft.Json, which crashes on MSC's stripped Unity runtime).
     /// </summary>
     public static partial class LocStore
     {
@@ -24,17 +22,22 @@ namespace UltimaLoc
             {
                 try
                 {
-                    JObject root = JObject.Parse(File.ReadAllText(file));
+                    var root = MiniJson.Parse(File.ReadAllText(file)) as Dictionary<string, object>;
+                    if (root == null) continue;
 
-                    string target = (string)root["targetAssembly"];
-                    if (!string.IsNullOrEmpty(target)) Targets.Add(target);
-
-                    JObject entries = root["entries"] as JObject;
-                    if (entries != null)
+                    object targetObj;
+                    if (root.TryGetValue("targetAssembly", out targetObj) && targetObj is string)
                     {
-                        foreach (KeyValuePair<string, JToken> kv in entries)
+                        string target = (string)targetObj;
+                        if (!string.IsNullOrEmpty(target)) Targets.Add(target);
+                    }
+
+                    object entriesObj;
+                    if (root.TryGetValue("entries", out entriesObj) && entriesObj is Dictionary<string, object>)
+                    {
+                        foreach (KeyValuePair<string, object> kv in (Dictionary<string, object>)entriesObj)
                         {
-                            string value = (string)kv.Value;
+                            string value = kv.Value as string;
                             if (!string.IsNullOrEmpty(kv.Key) && !string.IsNullOrEmpty(value))
                             {
                                 Map[kv.Key] = value;

@@ -15,7 +15,7 @@ namespace UltimaLoc
     {
         public override string ID => "UltimaLocPatcher";
         public override string Name => "ULTIMA Localization Patcher";
-        public override string Version => "1.0.0";
+        public override string Version => "1.0.1";
         public override string Author => "ANICKON";
 
         public UltimaLocMod()

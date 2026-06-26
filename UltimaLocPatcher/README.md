@@ -38,8 +38,8 @@ counterpart to `MscLocTool` (which does the offline extract/inject for the
   built by concatenation/formatting at runtime are not.
 - Methods already JIT-compiled before the patch is applied are not affected, so
   patching runs as early as possible (menu load).
-- Requires HarmonyX (`0Harmony.dll`) and `Newtonsoft.Json.dll`, both shipped
-  with MSCLoader.
+- Requires Harmony **1.2** (`0Harmony.dll`), shipped with MSCLoader. JSON is
+  parsed by the bundled MiniJson — no Newtonsoft.Json dependency.
 
 ## Build & test
 
@@ -47,12 +47,16 @@ Built with the modern .NET SDK, targeting **net35** so the output loads in the
 game's Unity Mono runtime (mscorlib 2.0.0.0). The .NET Framework 3.5 reference
 assemblies come from the `Microsoft.NETFramework.ReferenceAssemblies.net35`
 NuGet package, so **no game files are required to build**. The only real
-dependencies are three redistributable assemblies committed under
-`References/` (provided by MSCLoader at runtime, so `Private=false`):
+dependencies are two redistributable assemblies committed under `References/`
+(provided by MSCLoader at runtime, so `Private=false`):
 
 - `MSCLoader.dll` — the loader API (Mod base class, ModConsole, Setup).
 - `0Harmony.dll` — Harmony **1.2** (namespace `Harmony`, `HarmonyInstance`).
-- `Newtonsoft.Json.dll` — JSON parsing for the translation tables.
+
+Translation tables are parsed by a tiny dependency-free reader (`MiniJson`) —
+**not** Newtonsoft.Json, which crashes on MSC's stripped Unity runtime (it
+references `System.ComponentModel.INotifyPropertyChanging`, absent from the
+game's `System.dll`).
 
 ```
 # build the patcher → bin/Release/UltimaLocPatcher.dll  (net35)

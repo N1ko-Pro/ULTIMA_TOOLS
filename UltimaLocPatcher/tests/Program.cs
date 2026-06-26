@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using UltimaLoc;
@@ -94,6 +95,66 @@ Test("a miss leaves the original (out is null)", () =>
     LocStore.Map[LocId.Make("X")] = "Икс";
     Assert(!LocStore.TryTranslate("Y", out var tr), "Y should miss");
     Assert(tr == null, "miss must yield null translation");
+});
+
+Console.WriteLine("\nMiniJson + LocStore.LoadFromDirectory");
+
+Test("loads a table: targetAssembly + entries (with escapes/unicode)", () =>
+{
+    LocStore.Reset();
+    string dir = Path.Combine(Path.GetTempPath(), "ultimaloc-test-" + Guid.NewGuid().ToString("N"));
+    Directory.CreateDirectory(dir);
+    try
+    {
+        // Values exercise escapes the MiniJson parser must handle: quotes,
+        // backslashes, newlines, unicode escapes.
+        string json =
+            "{\n" +
+            "  \"schema\": 1,\n" +
+            "  \"targetAssembly\": \"SomeMod\",\n" +
+            "  \"language\": \"ru\",\n" +
+            "  \"entries\": {\n" +
+            "    \"uAAAA\": \"Привет, \\\"мир\\\"\",\n" +
+            "    \"uBBBB\": \"line1\\nline2\\tend\",\n" +
+            "    \"uCCCC\": \"\\u0041\\u0042\\u0043\",\n" +
+            "    \"uDDDD\": \"\",\n" +
+            "    \"uEEEE\": \"C:\\\\path\\\\file\"\n" +
+            "  }\n" +
+            "}";
+        File.WriteAllText(Path.Combine(dir, "somemod.json"), json, new UTF8Encoding(false));
+
+        int n = LocStore.LoadFromDirectory(dir);
+        Assert(n == 1, "expected 1 table loaded, got " + n);
+        Assert(LocStore.Targets.Contains("SomeMod"), "targetAssembly not registered");
+        Assert(LocStore.Map["uAAAA"] == "Привет, \"мир\"", "escaped quotes/unicode wrong: " + LocStore.Map["uAAAA"]);
+        Assert(LocStore.Map["uBBBB"] == "line1\nline2\tend", "escaped control chars wrong");
+        Assert(LocStore.Map["uCCCC"] == "ABC", "\\u escapes wrong: " + LocStore.Map["uCCCC"]);
+        Assert(!LocStore.Map.ContainsKey("uDDDD"), "empty value must be skipped");
+        Assert(LocStore.Map["uEEEE"] == "C:\\path\\file", "escaped backslashes wrong: " + LocStore.Map["uEEEE"]);
+    }
+    finally { try { Directory.Delete(dir, true); } catch { } }
+});
+
+Test("missing directory → 0 tables, no throw", () =>
+{
+    LocStore.Reset();
+    Assert(LocStore.LoadFromDirectory(Path.Combine(Path.GetTempPath(), "nope-" + Guid.NewGuid().ToString("N"))) == 0, "should be 0");
+});
+
+Test("malformed json is skipped, valid sibling still loads", () =>
+{
+    LocStore.Reset();
+    string dir = Path.Combine(Path.GetTempPath(), "ultimaloc-test-" + Guid.NewGuid().ToString("N"));
+    Directory.CreateDirectory(dir);
+    try
+    {
+        File.WriteAllText(Path.Combine(dir, "bad.json"), "{ this is not json ", new UTF8Encoding(false));
+        File.WriteAllText(Path.Combine(dir, "good.json"),
+            "{\"targetAssembly\":\"Good\",\"entries\":{\"uZZZZ\":\"ok\"}}", new UTF8Encoding(false));
+        LocStore.LoadFromDirectory(dir);
+        Assert(LocStore.Map.ContainsKey("uZZZZ") && LocStore.Map["uZZZZ"] == "ok", "good table must still load");
+    }
+    finally { try { Directory.Delete(dir, true); } catch { } }
 });
 
 Console.WriteLine($"\n{pass} passed, {fail} failed");

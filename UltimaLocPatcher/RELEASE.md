@@ -10,9 +10,10 @@ by you — everything else is ready.
 - `src/` — patcher source (LocId, LocStore[+Io], LocPatch, UltimaLocMod).
 - `tests/` — pure-core unit tests (net8): id contract + lookup. Run with
   `dotnet run -c Release` from `tests/`.
-- `References/` — the three redistributable deps needed to build
-  (MSCLoader.dll, 0Harmony.dll = Harmony 1.2, Newtonsoft.Json.dll). Committed,
-  so CI needs **no** game files.
+- `References/` — the redistributable deps needed to build
+  (MSCLoader.dll, 0Harmony.dll = Harmony 1.2). Committed,
+  so CI needs **no** game files. (JSON is parsed by the bundled MiniJson —
+  no Newtonsoft.Json dependency.)
 - `UltimaLocPatcher.csproj` — targets **net35** via the
   `Microsoft.NETFramework.ReferenceAssemblies.net35` NuGet package. Verified:
   output references `mscorlib 2.0.0.0`, `MSCLoader 1.4.2`, `0Harmony 1.2.0.1` —

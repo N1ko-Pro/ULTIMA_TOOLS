@@ -23,9 +23,11 @@
 
   <ItemGroup>
     <Compile Include="Program.cs" />
-    <!-- The patcher's pure core, tested as-is. -->
+    <!-- The patcher's pure core + JSON loader, tested as-is. -->
     <Compile Include="..\src\LocId.cs" />
     <Compile Include="..\src\LocStore.cs" />
+    <Compile Include="..\src\LocStore.Io.cs" />
+    <Compile Include="..\src\MiniJson.cs" />
   </ItemGroup>
 
 </Project>

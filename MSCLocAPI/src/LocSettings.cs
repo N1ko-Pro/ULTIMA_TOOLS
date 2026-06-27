@@ -102,7 +102,7 @@ namespace UltimaLoc
             {
                 string desc = mod.Description;
                 string tr;
-                if (!string.IsNullOrEmpty(desc) && LocStore.TryTranslate(desc, out tr))
+                if (!string.IsNullOrEmpty(desc) && LocStore.TryTranslateBlock(desc, out tr))
                 {
                     mod.Description = tr;
                     changed++;
@@ -172,7 +172,7 @@ namespace UltimaLoc
             {
                 string name = F_name != null ? F_name.GetValue(setting) as string : null;
                 string tr;
-                if (!string.IsNullOrEmpty(name) && LocStore.TryTranslate(name, out tr))
+                if (!string.IsNullOrEmpty(name) && LocStore.TryTranslateBlock(name, out tr))
                 {
                     if (M_updateName != null) M_updateName.Invoke(setting, new object[] { tr });
                     else if (F_name != null) F_name.SetValue(setting, tr);

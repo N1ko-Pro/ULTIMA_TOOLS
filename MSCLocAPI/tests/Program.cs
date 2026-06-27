@@ -97,6 +97,43 @@ Test("a miss leaves the original (out is null)", () =>
     Assert(tr == null, "miss must yield null translation");
 });
 
+Console.WriteLine("\nLocStore.TryTranslateBlock — multi-line concat fallback");
+
+Test("translates a runtime-concatenated multi-line block line-by-line", () =>
+{
+    LocStore.Reset();
+    // Mimics Settings.AddText(string.Concat(line, NewLine, line, ...)): the whole
+    // block has no id, but each line does.
+    string l1 = "Select jobs size (changes how many delivery locations)";
+    string l2 = "<color=orange>Easy</color> - only small boxes.";
+    string l3 = "<color=orange>Hard</color> - big boxes.";
+    LocStore.Map[LocId.Make(l1)] = "Выбор размера работы";
+    LocStore.Map[LocId.Make(l2)] = "<color=orange>Легко</color> - маленькие коробки.";
+    LocStore.Map[LocId.Make(l3)] = "<color=orange>Сложно</color> - большие коробки.";
+
+    string block = string.Join("\r\n", new[] { l1, l2, l3 });
+    Assert(!LocStore.TryTranslate(block, out _), "whole concatenated block must NOT have an id");
+    Assert(LocStore.TryTranslateBlock(block, out var tr), "block must translate line-by-line");
+    string expected = "Выбор размера работы\r\n<color=orange>Легко</color> - маленькие коробки.\r\n<color=orange>Сложно</color> - большие коробки.";
+    Assert(tr == expected, "block rejoined wrong:\n" + tr);
+});
+
+Test("partially-known block keeps untranslated lines intact, separators preserved", () =>
+{
+    LocStore.Reset();
+    LocStore.Map[LocId.Make("Known")] = "Известно";
+    string block = "Known\nUnknown line";
+    Assert(LocStore.TryTranslateBlock(block, out var tr), "should change (one line known)");
+    Assert(tr == "Известно\nUnknown line", "got: " + tr);
+});
+
+Test("single-line block with no id is a no-op", () =>
+{
+    LocStore.Reset();
+    Assert(!LocStore.TryTranslateBlock("nothing here", out var tr), "no-op expected");
+    Assert(tr == "nothing here", "must leave original");
+});
+
 Console.WriteLine("\nMiniJson + LocStore.LoadFromDirectory");
 
 Test("loads a table: targetAssembly + entries (with escapes/unicode)", () =>

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 
 namespace UltimaLoc
 {
@@ -33,6 +34,47 @@ namespace UltimaLoc
 
             string id = LocId.Make(original);
             return Map.TryGetValue(id, out translated) && !string.IsNullOrEmpty(translated);
+        }
+
+        // Splits on newlines while KEEPING the separators (capturing group), so
+        // a translated block can be rejoined with its original line breaks.
+        private static readonly Regex NewlineSplit = new Regex("(\r\n|\r|\n)");
+
+        /// <summary>
+        /// Like <see cref="TryTranslate"/>, but also handles multi-line text that
+        /// a mod built at runtime by concatenating several literals with
+        /// Environment.NewLine (e.g. Settings.AddText(string.Concat(lines))). The
+        /// whole string has no table id, but each individual line does — so we
+        /// translate line-by-line and rejoin. Returns true if anything changed.
+        /// </summary>
+        public static bool TryTranslateBlock(string original, out string translated)
+        {
+            translated = original;
+            if (string.IsNullOrEmpty(original)) return false;
+
+            // Fast path: the whole string is a known literal.
+            string whole;
+            if (TryTranslate(original, out whole)) { translated = whole; return true; }
+
+            // No line breaks → nothing more we can do.
+            if (original.IndexOf('\n') < 0 && original.IndexOf('\r') < 0) return false;
+
+            // parts: even indices = line content, odd indices = separators.
+            string[] parts = NewlineSplit.Split(original);
+            bool any = false;
+            for (int i = 0; i < parts.Length; i += 2)
+            {
+                string seg = parts[i];
+                string tr;
+                if (!string.IsNullOrEmpty(seg) && TryTranslate(seg, out tr))
+                {
+                    parts[i] = tr;
+                    any = true;
+                }
+            }
+            if (!any) return false;
+            translated = string.Concat(parts);
+            return true;
         }
 
         // Test/diagnostics helper — clears all loaded state.

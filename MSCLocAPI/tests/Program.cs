@@ -6,7 +6,7 @@ using System.Text;
 using UltimaLoc;
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  UltimaLocPatcher unit tests (pure core).
+//  MSCLoc API unit tests (pure core).
 //    • Property 3 — MakeId determinism + the cross-language id contract,
 //      cross-checked against golden vectors produced by Node's makeStringId.
 //    • Property 5 — the patcher translates a literal iff its id is present with

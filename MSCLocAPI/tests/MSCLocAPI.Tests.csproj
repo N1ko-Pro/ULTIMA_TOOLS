@@ -16,7 +16,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
-    <AssemblyName>UltimaLocPatcher.Tests</AssemblyName>
+    <AssemblyName>MSCLocAPI.Tests</AssemblyName>
     <RootNamespace>UltimaLoc.Tests</RootNamespace>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>

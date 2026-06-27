@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    UltimaLocPatcher — MSCLoader runtime translation patcher.
+    MSCLocAPI (MSCLoc API) — MSCLoader runtime translation patcher.
 
     My Summer Car is Unity (Mono) / .NET Framework 3.5, so we target net35 to
     produce an assembly that loads in the game's runtime (mscorlib 2.0.0.0).
@@ -10,16 +10,16 @@
     dependencies committed under References/ (MSCLoader, Harmony 1.2, Json.NET).
     This makes the project buildable in CI on a clean runner.
 
-    Build:  dotnet build -c Release   (output: bin/Release/UltimaLocPatcher.dll)
+    Build:  dotnet build -c Release   (output: bin/Release/MSCLocAPI.dll)
     Tests:  see tests/ (pure core, net8).
   -->
 
   <PropertyGroup>
     <TargetFramework>net35</TargetFramework>
-    <AssemblyName>UltimaLocPatcher</AssemblyName>
+    <AssemblyName>MSCLocAPI</AssemblyName>
     <RootNamespace>UltimaLoc</RootNamespace>
     <LangVersion>7.3</LangVersion>
-    <Version>1.0.4</Version>
+    <Version>1.0.6</Version>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <AutomaticBindingRedirects>false</AutomaticBindingRedirects>

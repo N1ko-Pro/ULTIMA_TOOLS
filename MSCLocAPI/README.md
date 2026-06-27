@@ -1,4 +1,4 @@
-# UltimaLocPatcher (My Summer Car runtime translation patcher)
+# MSCLoc API (My Summer Car runtime translation patcher)
 
 Universal MSCLoader mod that translates another mod's hardcoded string literals
 **at runtime**, without modifying the original `.dll` on disk. It is the patch
@@ -7,7 +7,7 @@ counterpart to `MscLocTool` (which does the offline extract/inject for the
 
 ## How it works
 
-1. On load, the patcher scans `Mods/Config/UltimaLoc/*.json` next to itself.
+1. On load, the patcher scans `Mods/Config/MSCLocAPI/*.json` next to itself.
    Each JSON is a translation table produced by ULTIMA:
 
    ```json
@@ -59,7 +59,7 @@ references `System.ComponentModel.INotifyPropertyChanging`, absent from the
 game's `System.dll`).
 
 ```
-# build the patcher → bin/Release/UltimaLocPatcher.dll  (net35)
+# build the patcher → bin/Release/MSCLocAPI.dll  (net35)
 dotnet build -c Release
 
 # run the pure-core unit tests (id contract + lookup), net8 — no game needed
@@ -69,7 +69,7 @@ cd tests && dotnet run -c Release
 Verified: the output assembly references `mscorlib 2.0.0.0`, `MSCLoader 1.4.2`
 and `0Harmony 1.2.0.1` — i.e. it is compatible with MSC's runtime.
 
-The published `UltimaLocPatcher.dll` asset is built & released by the
+The published `MSCLocAPI.dll` asset is built & released by the
 `build-loc-patcher.yml` workflow on a tag `loc-patcher-v<version>`. The ULTIMA
 app downloads it at runtime into `%APPDATA%/ULTIMA/Tools/MSC/`. After releasing,
 ensure the `MSC_PATCHER.downloadUrl` tag in the app's

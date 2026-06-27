@@ -1,20 +1,24 @@
 using System.Collections;
 using System.Reflection;
+using Harmony;
 using MSCLoader;
 
 namespace UltimaLoc
 {
     /// <summary>
-    /// Translates MSCLoader settings that were already materialized at load time.
+    /// Translates MSCLoader settings text (headers, checkbox/slider labels,
+    /// dropdown items, placeholders, mod descriptions, keybind names).
     ///
-    /// Why this is needed in addition to the transpiler: a mod's settings UI text
-    /// (headers, checkbox/slider labels, dropdown items) are passed as string
-    /// literals to Settings.Add* during the mod's settings-creation pass, which
-    /// MSCLoader runs at LOAD time — before our OnMenuLoad patch. By then the
-    /// literals are stored as data in ModSetting objects, so transpiling the
-    /// (already-executed) creation method can't change them. Here we walk the
-    /// finished ModSetting objects and translate their stored text directly,
-    /// looking each string up by the shared id contract.
+    /// Two passes, because mods create settings at different times:
+    ///   1. An initial sweep at OnMenuLoad over every already-registered setting
+    ///      (covers mods that build their settings during load).
+    ///   2. A Harmony PREFIX on ModMenuView.ModSettingsList / KeyBindsList that
+    ///      re-translates a mod's settings right BEFORE its page is built. This
+    ///      is essential for mods that add settings LAZILY (e.g. SettingsText
+    ///      descriptions created in a ModSettings callback fired only when the
+    ///      user opens the page — after OnMenuLoad), which the one-shot sweep
+    ///      would otherwise miss. Idempotent: an already-translated string has no
+    ///      table entry under its translated form, so re-runs are no-ops.
     ///
     /// Uses reflection for MSCLoader's internal members so it stays decoupled
     /// from their access level. Never throws.
@@ -30,7 +34,47 @@ namespace UltimaLoc
         private static readonly FieldInfo F_keybindName = typeof(ModKeybind).GetField("Name", MemberFlags);
         private static readonly MethodInfo M_updateName = typeof(ModSetting).GetMethod("UpdateName", MemberFlags);
 
-        /// <summary>Translate all loaded mods' settings + descriptions. Returns count changed.</summary>
+        /// <summary>
+        /// Patch the settings-page builders so each mod's settings are translated
+        /// just before its page is rendered (catches lazily-added settings).
+        /// Returns the number of builder methods hooked (0 if unavailable).
+        /// </summary>
+        public static int Install(HarmonyInstance harmony)
+        {
+            if (harmony == null) return 0;
+            try
+            {
+                System.Type tView = typeof(Mod).Assembly.GetType("MSCLoader.ModMenuView");
+                if (tView == null) return 0;
+
+                MethodInfo prefix = typeof(LocSettings).GetMethod(
+                    "Prefix_TranslateMod", BindingFlags.Static | BindingFlags.NonPublic);
+                if (prefix == null) return 0;
+                HarmonyMethod hmPrefix = new HarmonyMethod(prefix);
+
+                int hooked = 0;
+                foreach (string name in new[] { "ModSettingsList", "KeyBindsList" })
+                {
+                    MethodInfo m = tView.GetMethod(
+                        name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic);
+                    if (m == null) continue;
+                    try { harmony.Patch(m, hmPrefix, null); hooked++; }
+                    catch { /* skip a builder we couldn't patch */ }
+                }
+                return hooked;
+            }
+            catch { return 0; }
+        }
+
+        // Harmony prefix: both builders take a `mod` argument — translate its
+        // settings before the page UI reads their Name fields.
+        private static void Prefix_TranslateMod(Mod mod)
+        {
+            try { if (mod != null) TranslateMod(mod); }
+            catch { /* never break the settings menu */ }
+        }
+
+        /// <summary>Initial sweep over all loaded mods. Returns count changed.</summary>
         public static int TranslateLoadedSettings()
         {
             int changed = 0;
@@ -42,53 +86,60 @@ namespace UltimaLoc
 
             foreach (Mod mod in mods)
             {
-                if (mod == null) continue;
-
-                // Mod description shown on the mod card (a constructor-set field,
-                // so the transpiler can't reach it — set it directly).
-                try
-                {
-                    string desc = mod.Description;
-                    string tr;
-                    if (!string.IsNullOrEmpty(desc) && LocStore.TryTranslate(desc, out tr))
-                    {
-                        mod.Description = tr;
-                        changed++;
-                    }
-                }
-                catch { /* ignore */ }
-
-                // Settings labels / items.
-                try
-                {
-                    IEnumerable list = F_settingsList != null ? F_settingsList.GetValue(mod) as IEnumerable : null;
-                    if (list != null)
-                    {
-                        foreach (object setting in list)
-                        {
-                            changed += TranslateSetting(setting);
-                        }
-                    }
-                }
-                catch { /* ignore */ }
-
-                // Keybind names + keybind-section headers. These live in a
-                // separate list (modKeybindsList) from regular settings, and the
-                // keybind UI reads ModKeybind.Name when it builds each row — so
-                // translating the stored Name (before the page is built) is enough.
-                try
-                {
-                    IEnumerable kbList = F_keybindsList != null ? F_keybindsList.GetValue(mod) as IEnumerable : null;
-                    if (kbList != null)
-                    {
-                        foreach (object keybind in kbList)
-                        {
-                            changed += TranslateKeybind(keybind);
-                        }
-                    }
-                }
-                catch { /* ignore */ }
+                if (mod != null) changed += TranslateMod(mod);
             }
+            return changed;
+        }
+
+        /// <summary>Translate one mod's description + settings + keybinds.</summary>
+        private static int TranslateMod(Mod mod)
+        {
+            int changed = 0;
+
+            // Mod description shown on the mod card (a constructor-set field,
+            // so the transpiler can't reach it — set it directly).
+            try
+            {
+                string desc = mod.Description;
+                string tr;
+                if (!string.IsNullOrEmpty(desc) && LocStore.TryTranslate(desc, out tr))
+                {
+                    mod.Description = tr;
+                    changed++;
+                }
+            }
+            catch { /* ignore */ }
+
+            // Settings labels / items.
+            try
+            {
+                IEnumerable list = F_settingsList != null ? F_settingsList.GetValue(mod) as IEnumerable : null;
+                if (list != null)
+                {
+                    foreach (object setting in list)
+                    {
+                        changed += TranslateSetting(setting);
+                    }
+                }
+            }
+            catch { /* ignore */ }
+
+            // Keybind names + keybind-section headers. These live in a separate
+            // list (modKeybindsList) from regular settings, and the keybind UI
+            // reads ModKeybind.Name when it builds each row.
+            try
+            {
+                IEnumerable kbList = F_keybindsList != null ? F_keybindsList.GetValue(mod) as IEnumerable : null;
+                if (kbList != null)
+                {
+                    foreach (object keybind in kbList)
+                    {
+                        changed += TranslateKeybind(keybind);
+                    }
+                }
+            }
+            catch { /* ignore */ }
+
             return changed;
         }
 

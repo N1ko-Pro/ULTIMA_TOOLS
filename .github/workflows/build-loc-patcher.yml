@@ -9,14 +9,15 @@ name: Build MSCLoc API
 # so NO game files are needed — the three redistributable deps (MSCLoader,
 # Harmony 1.2, Json.NET) are committed under MSCLocAPI/References/.
 #
-# Publish a new build by pushing a tag like `loc-patcher-v1.0.0` (must match
-# MSC_PATCHER.version in the app's toolConfig.js). Marked as a pre-release and
-# NOT "latest", so it never interferes with the app's auto-updater.
+# Publish a new build by pushing a tag like `MSCLoc-API-v1.1.0` (must match
+# MSC_PATCHER.version in the app's toolConfig.js). The newest tag becomes the
+# repo's "Latest" release. The app resolves the highest MSCLoc-API-v* semver
+# from the releases API on its own, so it isn't tied to this flag.
 
 on:
   push:
     tags:
-      - 'loc-patcher-v*'
+      - 'MSCLoc-API-v*'
   workflow_dispatch:
 
 permissions:
@@ -54,8 +55,12 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: publish/MSCLocAPI.dll
-          prerelease: true
-          make_latest: false
+          # Mark the newest tag as the repo's "Latest" release so the Releases
+          # page sorts/badges it correctly. The app no longer relies on GitHub's
+          # "latest" for updates (it resolves the highest MSCLoc-API-v* semver
+          # itself), so this is purely for a sane release page.
+          prerelease: false
+          make_latest: true
 
   # ── Publish to Nexus Mods (disabled until configured) ───────────────────────
   # Runs only when the repo variable NEXUSMODS_FILE_ID is set, so it never breaks
@@ -69,9 +74,9 @@ jobs:
     if: ${{ vars.NEXUSMODS_FILE_ID != '' && startsWith(github.ref, 'refs/tags/') }}
     runs-on: ubuntu-latest
     steps:
-      - name: Derive version from tag (loc-patcher-vX.Y.Z -> X.Y.Z)
+      - name: Derive version from tag (MSCLoc-API-vX.Y.Z -> X.Y.Z)
         id: ver
-        run: echo "version=${GITHUB_REF_NAME#loc-patcher-v}" >> "$GITHUB_OUTPUT"
+        run: echo "version=${GITHUB_REF_NAME#MSCLoc-API-v}" >> "$GITHUB_OUTPUT"
 
       - name: Download built DLL
         uses: actions/download-artifact@v4

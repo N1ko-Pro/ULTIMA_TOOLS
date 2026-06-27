@@ -56,3 +56,41 @@ jobs:
           files: publish/MSCLocAPI.dll
           prerelease: true
           make_latest: false
+
+  # ── Publish to Nexus Mods (disabled until configured) ───────────────────────
+  # Runs only when the repo variable NEXUSMODS_FILE_ID is set, so it never breaks
+  # the build/release above. Uses the official Nexus Upload API action.
+  #   One-time: create the mod page + upload the first MSCLocAPI.dll manually,
+  #             copy its File ID.
+  #   Variable: NEXUSMODS_FILE_ID = <that file id>
+  #   Secret:   NEXUSMODS_API_KEY = <personal API key>
+  publish-nexus:
+    needs: build
+    if: ${{ vars.NEXUSMODS_FILE_ID != '' && startsWith(github.ref, 'refs/tags/') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Derive version from tag (loc-patcher-vX.Y.Z -> X.Y.Z)
+        id: ver
+        run: echo "version=${GITHUB_REF_NAME#loc-patcher-v}" >> "$GITHUB_OUTPUT"
+
+      - name: Download built DLL
+        uses: actions/download-artifact@v4
+        with:
+          name: MSCLocAPI
+          path: ./artifact
+
+      - name: Package as zip
+        run: |
+          mkdir -p out
+          cp ./artifact/MSCLocAPI.dll out/
+          cd out && zip "MSCLocAPI-${{ steps.ver.outputs.version }}.zip" MSCLocAPI.dll
+
+      - name: Upload to Nexus Mods
+        uses: Nexus-Mods/upload-action@main
+        with:
+          api_key: ${{ secrets.NEXUSMODS_API_KEY }}
+          file_id: ${{ vars.NEXUSMODS_FILE_ID }}
+          filename: out/MSCLocAPI-${{ steps.ver.outputs.version }}.zip
+          display_name: MSCLoc API ${{ steps.ver.outputs.version }}
+          description: Пожалуйста, ознакомьтесь с описанием, чтобы узнать больше деталей.
+          version: ${{ steps.ver.outputs.version }}

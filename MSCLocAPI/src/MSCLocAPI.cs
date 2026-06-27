@@ -14,7 +14,7 @@ namespace UltimaLoc
     {
         public override string ID => "MSCLocAPI";
         public override string Name => "MSCLoc API";
-        public override string Version => "1.0.8";
+        public override string Version => "1.0.9";
         public override string Author => "ANICKON";
 
         // Update-notice state (built once in ModSettings, revealed from Update

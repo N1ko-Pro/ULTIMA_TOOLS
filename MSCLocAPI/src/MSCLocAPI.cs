@@ -14,8 +14,13 @@ namespace UltimaLoc
     {
         public override string ID => "MSCLocAPI";
         public override string Name => "MSCLoc API";
-        public override string Version => "1.0.7";
+        public override string Version => "1.0.8";
         public override string Author => "ANICKON";
+
+        // Update-notice state (built once in ModSettings, revealed from Update
+        // once the background version check confirms a newer release).
+        private SettingsText updateNotice;
+        private bool noticeApplied;
 
         public MSCLocAPI()
         {
@@ -29,6 +34,47 @@ namespace UltimaLoc
             // already loaded into the AppDomain — patch before gameplay JITs the
             // target methods.
             SetupFunction(Setup.OnMenuLoad, Mod_OnMenuLoad);
+            SetupFunction(Setup.ModSettings, Mod_Settings);
+            SetupFunction(Setup.Update, Mod_Update);
+
+            // Kick off a non-blocking "is there a newer version?" check early.
+            try { LocUpdate.CheckAsync(Version); } catch { /* never break load */ }
+        }
+
+        // Build the mod's own settings page: version + a hidden update notice
+        // that Mod_Update reveals when a newer release is detected.
+        private void Mod_Settings()
+        {
+            try
+            {
+                Settings.AddHeader("MSCLoc API");
+                Settings.AddText("Версия: " + Version);
+                updateNotice = Settings.AddText(string.Empty);
+                if (updateNotice != null) updateNotice.SetVisibility(false);
+            }
+            catch { /* settings UI is optional — never break the menu */ }
+        }
+
+        // Runs on the main thread; safe to touch MSCLoader UI here. Reveals the
+        // update notice once the async check confirms a newer version.
+        private void Mod_Update()
+        {
+            if (noticeApplied || !LocUpdate.UpdateAvailable) return;
+            noticeApplied = true;
+            try
+            {
+                ModConsole.Log(string.Format(
+                    "[MSCLoc API] Доступно обновление v{0} (установлена v{1}). Обновите через приложение ULTIMA.",
+                    LocUpdate.LatestVersion, Version));
+                if (updateNotice != null)
+                {
+                    updateNotice.SetValue(string.Format(
+                        "<color=orange>⚠ Доступно обновление MSCLoc API v{0}.</color> Обновите патчер через приложение ULTIMA.",
+                        LocUpdate.LatestVersion));
+                    updateNotice.SetVisibility(true);
+                }
+            }
+            catch { /* ignore UI hiccups */ }
         }
 
         private void Mod_OnMenuLoad()

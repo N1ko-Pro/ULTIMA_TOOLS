@@ -25,7 +25,9 @@ namespace UltimaLoc
             BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public;
 
         private static readonly FieldInfo F_settingsList = typeof(Mod).GetField("modSettingsList", MemberFlags);
+        private static readonly FieldInfo F_keybindsList = typeof(Mod).GetField("modKeybindsList", MemberFlags);
         private static readonly FieldInfo F_name = typeof(ModSetting).GetField("Name", MemberFlags);
+        private static readonly FieldInfo F_keybindName = typeof(ModKeybind).GetField("Name", MemberFlags);
         private static readonly MethodInfo M_updateName = typeof(ModSetting).GetMethod("UpdateName", MemberFlags);
 
         /// <summary>Translate all loaded mods' settings + descriptions. Returns count changed.</summary>
@@ -60,15 +62,51 @@ namespace UltimaLoc
                 try
                 {
                     IEnumerable list = F_settingsList != null ? F_settingsList.GetValue(mod) as IEnumerable : null;
-                    if (list == null) continue;
-                    foreach (object setting in list)
+                    if (list != null)
                     {
-                        changed += TranslateSetting(setting);
+                        foreach (object setting in list)
+                        {
+                            changed += TranslateSetting(setting);
+                        }
+                    }
+                }
+                catch { /* ignore */ }
+
+                // Keybind names + keybind-section headers. These live in a
+                // separate list (modKeybindsList) from regular settings, and the
+                // keybind UI reads ModKeybind.Name when it builds each row — so
+                // translating the stored Name (before the page is built) is enough.
+                try
+                {
+                    IEnumerable kbList = F_keybindsList != null ? F_keybindsList.GetValue(mod) as IEnumerable : null;
+                    if (kbList != null)
+                    {
+                        foreach (object keybind in kbList)
+                        {
+                            changed += TranslateKeybind(keybind);
+                        }
                     }
                 }
                 catch { /* ignore */ }
             }
             return changed;
+        }
+
+        private static int TranslateKeybind(object keybind)
+        {
+            if (keybind == null || F_keybindName == null) return 0;
+            try
+            {
+                string name = F_keybindName.GetValue(keybind) as string;
+                string tr;
+                if (!string.IsNullOrEmpty(name) && LocStore.TryTranslate(name, out tr))
+                {
+                    F_keybindName.SetValue(keybind, tr);
+                    return 1;
+                }
+            }
+            catch { /* ignore */ }
+            return 0;
         }
 
         private static int TranslateSetting(object setting)

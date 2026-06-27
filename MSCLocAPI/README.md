@@ -70,7 +70,7 @@ Verified: the output assembly references `mscorlib 2.0.0.0`, `MSCLoader 1.4.2`
 and `0Harmony 1.2.0.1` — i.e. it is compatible with MSC's runtime.
 
 The published `MSCLocAPI.dll` asset is built & released by the
-`build-loc-patcher.yml` workflow on a tag `loc-patcher-v<version>`. The ULTIMA
+`build-loc-patcher.yml` workflow on a tag `MSCLoc-API-v<version>`. The ULTIMA
 app downloads it at runtime into `%APPDATA%/ULTIMA/Tools/MSC/`. After releasing,
 ensure the `MSC_PATCHER.downloadUrl` tag in the app's
 `Backend/games/mysummercar/toolConfig.js` matches.

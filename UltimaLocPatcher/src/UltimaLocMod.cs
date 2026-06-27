@@ -15,7 +15,7 @@ namespace UltimaLoc
     {
         public override string ID => "UltimaLocPatcher";
         public override string Name => "ULTIMA Localization Patcher";
-        public override string Version => "1.0.3";
+        public override string Version => "1.0.4";
         public override string Author => "ANICKON";
 
         public UltimaLocMod()
@@ -53,9 +53,13 @@ namespace UltimaLoc
                 // materialized at load time (the transpiler can't reach those).
                 int settings = LocSettings.TranslateLoadedSettings();
 
+                // Make translated labels fit their box (RU/long text was being
+                // clipped). Hooks SettingsElement.Setup* — runs when pages build.
+                int fitHooks = LocLayout.Install(harmony);
+
                 ModConsole.Log(string.Format(
-                    "[ULTIMA Loc] Loaded {0} table(s), {1} string(s); patched {2} method(s) across {3} target assembly(ies); translated {4} setting(s).",
-                    tables, LocStore.Map.Count, patched, LocStore.Targets.Count, settings));
+                    "[ULTIMA Loc] Loaded {0} table(s), {1} string(s); patched {2} method(s) across {3} target assembly(ies); translated {4} setting(s); fit-hooks {5}.",
+                    tables, LocStore.Map.Count, patched, LocStore.Targets.Count, settings, fitHooks));
             }
             catch (System.Exception ex)
             {

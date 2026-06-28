@@ -14,7 +14,7 @@ namespace UltimaLoc
     {
         public override string ID => "MSCLocAPI";
         public override string Name => "MSCLoc API";
-        public override string Version => "1.1.0";
+        public override string Version => "1.1.1";
         public override string Author => "ANICKON";
 
         public MSCLocAPI()
@@ -61,9 +61,14 @@ namespace UltimaLoc
                 // clipped). Hooks SettingsElement.Setup* — runs when pages build.
                 int fitHooks = LocLayout.Install(harmony);
 
+                // Translate UI text baked into Unity prefabs / asset bundles
+                // (custom author menus the ldstr transpiler can't reach) by
+                // translating UnityEngine.UI.Text content as it appears.
+                int textHooks = LocText.Install(harmony);
+
                 ModConsole.Log(string.Format(
-                    "[MSCLoc API] Loaded {0} table(s), {1} string(s); patched {2} method(s) across {3} target assembly(ies); translated {4} setting(s); fit-hooks {5}.",
-                    tables, LocStore.Map.Count, patched, LocStore.Targets.Count, settings, fitHooks));
+                    "[MSCLoc API] Loaded {0} table(s), {1} string(s); patched {2} method(s) across {3} target assembly(ies); translated {4} setting(s); fit-hooks {5}; text-sweep {6}.",
+                    tables, LocStore.Map.Count, patched, LocStore.Targets.Count, settings, fitHooks, textHooks));
             }
             catch (System.Exception ex)
             {
